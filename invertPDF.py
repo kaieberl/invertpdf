@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-A simple script for inverting PDF files.
+A simple script for inverting the color of PDF files.
 
 Usage:
 python3 invertPDF.py input.pdf [-o output.pdf]
@@ -14,7 +14,6 @@ __copyright__ = '"Copyright 2021, invertPDF'
 __license__ = 'GPL'
 
 import argparse
-import sys
 from pathlib import Path
 
 import pikepdf
@@ -22,7 +21,7 @@ from PyPDF2 import PdfReader
 from pikepdf import Page, Name
 
 
-def invertPDF(in_file, out_file):
+def invertPDF(in_file, out_file, inv_ratio: float = 1.0):
     """
     Inverts a PDF and saves it elsewhere.
 
@@ -60,10 +59,10 @@ def invertPDF(in_file, out_file):
             name = page.add_resource(blend_dict, Name('/ExtGState'))
             name2 = page.add_resource(non_blend_dict, Name('/ExtGState'))
             # Create rectangles
-            front_rect = pdf.make_stream(
-                bytes('q \n0.9 0.9 0.9 rg\n{} gs\n{} {} {} {} re\n f\n Q'.format(name, *boxes[i]), 'utf8'), xobj_dict)
-            back_rect = pdf.make_stream(
-                bytes('q \n1.0 1.0 1.0 rg\n{} gs\n{} {} {} {} re\n f\n Q'.format(name2, *boxes[i]), 'utf8'))
+            front_rect = pdf.make_stream(bytes(
+                'q \n{0:.2} {0:.2} {0:.2} rg\n{1} gs\n{2} {3} {4} {5} re\n f\n Q'.format(inv_ratio, name, *boxes[i]), 'utf8'), xobj_dict)
+            back_rect = pdf.make_stream(bytes(
+                'q \n1.0 1.0 1.0 rg\n{} gs\n{} {} {} {} re\n f\n Q'.format(name2, *boxes[i]), 'utf8'))
             # Add Rectangles to page
             page.contents_add(back_rect, prepend=True)
             page.contents_add(front_rect)
@@ -71,7 +70,7 @@ def invertPDF(in_file, out_file):
         pdf.save(out_file)
 
 
-def invert_file_to_folder(input_file, output_file: Path):
+def invert_file_to_folder(input_file, output_file: Path, inv_ratio: float = 1.0):
     """
     Converts all given files and places their inverted copies in the given folder under the same file names.
 
@@ -98,8 +97,19 @@ if __name__ == '__main__':
 
     parser.add_argument('input', type=str, help='The path to the input PDF file.')
     parser.add_argument('-o', '--output', type=str, help='The output folder.', default=None)
+    parser.add_argument(
+        '--inv-ratio',
+        help=(
+            'Inversion ratio between 0 and 1. 0 corresponds no inversion and 1 corresponds to a true color inversion.'
+            ' By default this is 0.9 to produce inversions that are easier on the eyes.'
+        ),
+        type=float,
+        default=1.0
+    )
 
     args = parser.parse_args()
+
+    inv_ratio = max(min(args.inv_ratio, 1.0), 0.0)
 
     input_file = Path(args.input)
     output_file = Path(args.output or args.input)
